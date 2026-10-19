@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>La Templanza — Carta Digital</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<style>
+  :root{
+    --ink:#2B2420; --base:#EFEADB; --wine:#7A2E3A; --wine-dark:#5E2230;
+    --gold:#C08A28; --sage:#5C6F57; --card:#FBF8F0;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ink:#F3ECDF; --base:#211B17; --card:#2A231F; --gold:#D9A43E; --sage:#7C9074;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ink:#F3ECDF; --base:#211B17; --card:#2A231F; --gold:#D9A43E; --sage:#7C9074;
+  }
+  html{box-sizing:border-box; scroll-padding-top: calc(118px + env(safe-area-inset-top,0px));}
+  *,*::before,*::after{box-sizing:inherit;}
+  body{
+    background:var(--base); color:var(--ink); font-family:'Work Sans',sans-serif;
+    padding-top: env(safe-area-inset-top,0px); padding-bottom: env(safe-area-inset-bottom,0px);
+    min-height:100%;
+  }
+  .font-display{font-family:'Fraunces',serif;}
+  ::-webkit-scrollbar{display:none;}
+  .nowrap-scroll{-ms-overflow-style:none; scrollbar-width:none;}
+  .chip{transition:background .15s ease, color .15s ease, border-color .15s ease;}
+  .dish-card{transition:opacity .25s ease, transform .25s ease;}
+  .dish-exit{opacity:0; transform:scale(.96); pointer-events:none;}
+  .pop{animation:pop .3s ease;}
+  @keyframes pop{0%{transform:scale(1);}35%{transform:scale(1.15);}100%{transform:scale(1);}}
+  #cartbar{transition:transform .3s ease;}
+  #modalBackdrop,#confirmBackdrop{transition:opacity .2s ease;}
+  #modalSheet{transition:transform .3s ease;}
+</style>
+</head>
+<body class="antialiased">
+
+<div id="topSafe" style="position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:40;background:var(--wine-dark);"></div>
+
+<!-- HEADER -->
+<header class="sticky z-30" style="top:env(safe-area-inset-top,0px); background:var(--wine-dark);">
+  <div class="px-5 pt-5 pb-3">
+    <p class="font-display text-[11px] tracking-[0.2em] text-amber-200/70 mb-0.5">RESTAURANTE</p>
+    <h1 class="font-display text-[28px] leading-none text-[#F6EEDD]">La Templanza</h1>
+    <p class="text-[12.5px] text-amber-100/60 mt-1">Cocina de mercado · Mesa seleccionada abajo al pedir</p>
+  </div>
+  <nav id="catNav" class="flex gap-2 px-5 pb-3 overflow-x-auto nowrap-scroll"></nav>
+</header>
+
+<!-- FILTROS DE ALERGENOS -->
+<div class="px-5 pt-4 pb-1">
+  <p class="text-[11px] font-semibold tracking-wide uppercase text-[var(--wine)]/80 mb-2">Filtrar por dieta</p>
+  <div id="filterRow" class="flex gap-2 overflow-x-auto nowrap-scroll pb-1"></div>
+</div>
+
+<!-- LISTADO -->
+<main id="dishList" class="px-5 pt-3 pb-40 space-y-4 max-w-xl mx-auto"></main>
+
+<p id="emptyState" class="hidden text-center text-sm px-10 py-16 opacity-60 font-display text-lg">
+  Ningún plato de esta categoría cumple esos filtros. Prueba a quitar alguno.
+</p>
+
+<!-- BARRA FLOTANTE DE COMANDA -->
+<button id="cartbar" onclick="openModal()"
+  class="fixed left-4 right-4 z-30 rounded-2xl shadow-xl flex items-center justify-between px-5 py-4 translate-y-28"
+  style="bottom: calc(18px + env(safe-area-inset-bottom,0px)); background:var(--wine); color:#F6EEDD;">
+  <span class="flex items-center gap-2 font-medium">
+    <span id="cartCount" class="inline-flex items-center justify-center w-6 h-6 rounded-full text-[13px] font-bold" style="background:var(--gold); color:#2B2420;">0</span>
+    Ver comanda
+  </span>
+  <span id="cartTotal" class="font-display text-lg">0,00 €</span>
+</button>
+
+<!-- MODAL COMANDA -->
+<div id="modalBackdrop" onclick="closeModal()" class="fixed inset-0 bg-black/50 z-40 opacity-0 pointer-events-none"></div>
+<div id="modalSheet" class="fixed left-0 right-0 bottom-0 z-50 translate-y-full rounded-t-3xl max-h-[85vh] flex flex-col" style="background:var(--card);">
+  <div class="px-5 pt-4 pb-2 flex items-center justify-between border-b" style="border-color: color-mix(in srgb, var(--ink) 12%, transparent);">
+    <h2 class="font-display text-xl">Tu comanda</h2>
+    <button onclick="closeModal()" aria-label="Cerrar" class="w-9 h-9 flex items-center justify-center rounded-full text-lg" style="background:color-mix(in srgb, var(--ink) 8%, transparent);">✕</button>
+  </div>
+  <div id="orderItems" class="overflow-y-auto px-5 py-3 space-y-3 flex-1"></div>
+  <div class="px-5 pb-6 pt-3 border-t" style="border-color: color-mix(in srgb, var(--ink) 12%, transparent); padding-bottom: calc(1.5rem + env(safe-area-inset-bottom,0px));">
+    <div class="flex items-center justify-between mb-3">
+      <span class="text-sm opacity-70">Total</span>
+      <span id="modalTotal" class="font-display text-2xl">0,00 €</span>
+    </div>
+    <label class="block text-sm font-medium mb-1.5">Número de mesa</label>
+    <input id="tableInput" inputmode="numeric" placeholder="Ej: 12" maxlength="3"
+      class="w-full rounded-xl px-4 py-3 mb-4 outline-none border-2 bg-transparent"
+      style="border-color: color-mix(in srgb, var(--ink) 18%, transparent);">
+    <button onclick="sendOrder()" id="sendBtn"
+      class="w-full rounded-xl py-3.5 font-semibold text-[15px]"
+      style="background:var(--wine); color:#F6EEDD;">Enviar comanda</button>
+  </div>
+</div>
+
+<!-- CONFIRMACION -->
+<div id="confirmBackdrop" class="fixed inset-0 z-[60] bg-black/55 opacity-0 pointer-events-none flex items-end sm:items-center justify-center">
+  <div id="confirmCard" class="w-full sm:w-80 m-4 rounded-2xl p-6 text-center translate-y-6 opacity-0" style="background:var(--card); transition: all .25s ease;">
+    <div class="w-14 h-14 rounded-full mx-auto mb-3 flex items-center justify-center text-2xl" style="background:var(--sage); color:#fff;">✓</div>
+    <h3 class="font-display text-xl mb-1">Comanda enviada</h3>
+    <p id="confirmText" class="text-sm opacity-70 mb-5">Cocina ha recibido tu pedido.</p>
+    <button onclick="closeConfirm()" class="w-full rounded-xl py-2.5 font-medium" style="background:var(--gold); color:#2B2420;">Entendido</button>
+  </div>
+</div>
+
+<script>
+const CATEGORIES = ["Entrantes","Principales","Bebidas","Postres"];
+const ALLERGENS = [
+  {id:"gluten", label:"Sin gluten", icon:"🌾"},
+  {id:"vegano", label:"Vegano", icon:"🌱"},
+  {id:"lactosa", label:"Sin lactosa", icon:"🥛"},
+  {id:"frutos", label:"Sin frutos secos", icon:"🥜"},
+];
+// 'free' = dieta que SÍ cumple el plato (no contiene ese alérgeno / apto)
+const DISHES = [
+  {id:1, cat:"Entrantes", name:"Pulpo a la brasa", desc:"Pulpo asado sobre crema de patata ahumada y pimentón de la Vera.", price:14.50, img:"https://images.unsplash.com/photo-1599020792689-9bb0b49bf7c4?w=500&q=80", free:["gluten","lactosa","frutos"]},
+  {id:2, cat:"Entrantes", name:"Ensalada de tomate rosa", desc:"Tomate rosa de temporada, cebolla encurtida y aceite de albahaca.", price:9.00, img:"https://images.unsplash.com/photo-1540420773420-3366772f4999?w=500&q=80", free:["gluten","vegano","lactosa","frutos"]},
+  {id:3, cat:"Entrantes", name:"Hummus de remolacha", desc:"Hummus casero de remolacha asada con pan de pita tostado.", price:8.00, img:"https://images.unsplash.com/photo-1540713434306-58505cf1b6fe?w=500&q=80", free:["vegano","lactosa"]},
+  {id:4, cat:"Principales", name:"Arroz de verduras de temporada", desc:"Arroz meloso con alcachofa, calabacín y pimiento asado.", price:16.00, img:"https://images.unsplash.com/photo-1512058564366-18510be2db19?w=500&q=80", free:["gluten","vegano","lactosa","frutos"]},
+  {id:5, cat:"Principales", name:"Entrecot a la parrilla", desc:"Entrecot de vaca madurada con patatas panaderas y pimientos de Padrón.", price:22.00, img:"https://images.unsplash.com/photo-1600891964092-4316c288032e?w=500&q=80", free:["gluten","lactosa","frutos"]},
+  {id:6, cat:"Principales", name:"Curry de garbanzos y coco", desc:"Garbanzos estofados en leche de coco, espinacas y jengibre.", price:13.50, img:"https://images.unsplash.com/photo-1631452180519-c014fe946bc7?w=500&q=80", free:["gluten","vegano","lactosa","frutos"]},
+  {id:7, cat:"Principales", name:"Lubina al horno", desc:"Lubina salvaje con costra de hierbas y puré de boniato.", price:19.50, img:"https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=500&q=80", free:["gluten","lactosa"]},
+  {id:8, cat:"Bebidas", name:"Vino tinto de la casa", desc:"Copa de tempranillo joven, crianza en barrica de roble.", price:4.50, img:"https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=500&q=80", free:["gluten","vegano","lactosa","frutos"]},
+  {id:9, cat:"Bebidas", name:"Limonada de jengibre", desc:"Limón exprimido, jengibre fresco y un toque de menta.", price:3.80, img:"https://images.unsplash.com/photo-1523371683702-1c125257a3f6?w=500&q=80", free:["gluten","vegano","lactosa","frutos"]},
+  {id:10, cat:"Bebidas", name:"Cerveza artesana IPA", desc:"IPA local de producción limitada, notas cítricas.", price:4.20, img:"https://images.unsplash.com/photo-1608270586620-248524c67de9?w=500&q=80", free:["vegano","lactosa","frutos"]},
+  {id:11, cat:"Postres", name:"Tarta de queso", desc:"Horneada al estilo vasco, textura cremosa en el centro.", price:6.50, img:"https://images.unsplash.com/photo-1524351199678-941a58a3df50?w=500&q=80", free:["gluten","frutos"]},
+  {id:12, cat:"Postres", name:"Sorbete de mango y maracuyá", desc:"Sorbete casero, sin lácteos, fruta 100% natural.", price:5.50, img:"https://images.unsplash.com/photo-1488477181946-6428a0291777?w=500&q=80", free:["gluten","vegano","lactosa","frutos"]},
+  {id:13, cat:"Postres", name:"Brownie con helado", desc:"Brownie de chocolate 70% con helado de vainilla y nueces.", price:7.00, img:"https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=500&q=80", free:["gluten"]},
+];
+
+let activeCat = "Entrantes";
+let activeFilters = new Set();
+let cart = {}; // id -> qty
+
+const eur = n => n.toLocaleString('es-ES',{minimumFractionDigits:2, maximumFractionDigits:2}) + " €";
+
+function renderNav(){
+  const nav = document.getElementById('catNav');
+  nav.innerHTML = CATEGORIES.map(c => `
+    <button onclick="setCat('${c}')" data-cat="${c}"
+      class="chip whitespace-nowrap px-4 py-1.5 rounded-full text-[13.5px] font-medium border"
+      style="${c===activeCat
+        ? 'background:var(--gold); color:#2B2420; border-color:var(--gold);'
+        : 'background:transparent; color:#F6EEDD; border-color:rgba(246,238,221,.35);'}">
+      ${c}
+    </button>`).join('');
+}
+
+function renderFilters(){
+  const row = document.getElementById('filterRow');
+  row.innerHTML = ALLERGENS.map(a => {
+    const on = activeFilters.has(a.id);
+    return `<button onclick="toggleFilter('${a.id}')"
+      class="chip whitespace-nowrap flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[13px] font-medium border-2"
+      style="${on
+        ? 'background:var(--sage); color:#fff; border-color:var(--sage);'
+        : 'background:transparent; color:var(--ink); border-color:color-mix(in srgb, var(--ink) 20%, transparent);'}">
+      <span>${a.icon}</span>${a.label}
+    </button>`;
+  }).join('');
+}
+
+function setCat(c){ activeCat = c; renderNav(); renderDishes(); window.scrollTo({top:0, behavior:'smooth'}); }
+function toggleFilter(id){
+  activeFilters.has(id) ? activeFilters.delete(id) : activeFilters.add(id);
+  renderFilters(); renderDishes();
+}
+
+function matchesFilters(dish){
+  for (const f of activeFilters) if (!dish.free.includes(f)) return false;
+  return true;
+}
+
+function renderDishes(){
+  const list = document.getElementById('dishList');
+  const items = DISHES.filter(d => d.cat === activeCat && matchesFilters(d));
+  document.getElementById('emptyState').classList.toggle('hidden', items.length>0);
+  list.innerHTML = items.map(d => `
+    <article id="card-${d.id}" class="dish-card rounded-2xl overflow-hidden shadow-sm flex" style="background:var(--card);">
+      <img src="${d.img}" alt="${d.name}" class="w-28 sm:w-32 object-cover flex-shrink-0" loading="lazy">
+      <div class="flex-1 p-3.5 flex flex-col">
+        <h3 class="font-display text-[17px] leading-tight">${d.name}</h3>
+        <p class="text-[12.5px] opacity-65 mt-1 leading-snug">${d.desc}</p>
+        <div class="flex gap-1 mt-2 flex-wrap">
+          ${ALLERGENS.filter(a=>d.free.includes(a.id)).map(a=>`<span class="text-[11px] px-1.5 py-0.5 rounded-md" style="background:color-mix(in srgb, var(--sage) 18%, transparent); color:var(--sage);" title="${a.label}">${a.icon}</span>`).join('')}
+        </div>
+        <div class="mt-auto pt-2 flex items-center justify-between">
+          <span class="font-display text-[16px]" style="color:var(--wine);">${eur(d.price)}</span>
+          <button onclick="addToOrder(${d.id})" class="text-[13px] font-semibold px-3 py-1.5 rounded-full" style="background:var(--wine); color:#F6EEDD;">+ Añadir</button>
+        </div>
+      </div>
+    </article>`).join('');
+}
+
+function addToOrder(id){
+  cart[id] = (cart[id]||0) + 1;
+  updateCartBar();
+  const btn = document.querySelector(`#card-${id} button[onclick^="addToOrder"]`);
+  if(btn){ btn.classList.add('pop'); setTimeout(()=>btn.classList.remove('pop'),300); }
+}
+function changeQty(id, delta){
+  cart[id] = (cart[id]||0) + delta;
+  if (cart[id] <= 0) delete cart[id];
+  updateCartBar(); renderOrderItems();
+}
+
+function cartEntries(){
+  return Object.entries(cart).map(([id,qty]) => ({dish: DISHES.find(d=>d.id==id), qty}));
+}
+function cartTotal(){
+  return cartEntries().reduce((s,e)=> s + e.dish.price*e.qty, 0);
+}
+function cartCount(){
+  return Object.values(cart).reduce((a,b)=>a+b,0);
+}
+
+function updateCartBar(){
+  const n = cartCount();
+  document.getElementById('cartCount').textContent = n;
+  document.getElementById('cartTotal').textContent = eur(cartTotal());
+  const bar = document.getElementById('cartbar');
+  bar.style.transform = n>0 ? 'translateY(0)' : 'translateY(120px)';
+}
+
+function renderOrderItems(){
+  const wrap = document.getElementById('orderItems');
+  const entries = cartEntries();
+  if(entries.length===0){
+    wrap.innerHTML = `<p class="text-center opacity-50 text-sm py-10">Tu comanda está vacía. Añade algún plato.</p>`;
+  } else {
+    wrap.innerHTML = entries.map(e => `
+      <div class="flex items-center gap-3">
+        <img src="${e.dish.img}" class="w-12 h-12 rounded-lg object-cover flex-shrink-0">
+        <div class="flex-1 min-w-0">
+          <p class="text-[14px] font-medium truncate">${e.dish.name}</p>
+          <p class="text-[12.5px] opacity-60">${eur(e.dish.price)} · ${eur(e.dish.price*e.qty)}</p>
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <button onclick="changeQty(${e.dish.id},-1)" class="w-7 h-7 rounded-full text-sm" style="background:color-mix(in srgb, var(--ink) 10%, transparent);">–</button>
+          <span class="text-sm w-4 text-center">${e.qty}</span>
+          <button onclick="changeQty(${e.dish.id},1)" class="w-7 h-7 rounded-full text-sm" style="background:color-mix(in srgb, var(--ink) 10%, transparent);">+</button>
+        </div>
+      </div>`).join('');
+  }
+  document.getElementById('modalTotal').textContent = eur(cartTotal());
+}
+
+function openModal(){
+  renderOrderItems();
+  document.getElementById('modalBackdrop').classList.remove('opacity-0','pointer-events-none');
+  document.getElementById('modalSheet').style.transform = 'translateY(0)';
+}
+function closeModal(){
+  document.getElementById('modalBackdrop').classList.add('opacity-0','pointer-events-none');
+  document.getElementById('modalSheet').style.transform = 'translateY(100%)';
+}
+
+function sendOrder(){
+  const table = document.getElementById('tableInput').value.trim();
+  if(cartCount()===0) return;
+  if(!table){ document.getElementById('tableInput').focus(); document.getElementById('tableInput').style.borderColor = 'var(--wine)'; return; }
+  document.getElementById('confirmText').textContent = `Mesa ${table} · ${cartCount()} ${cartCount()===1?'plato':'platos'} · ${eur(cartTotal())}`;
+  closeModal();
+  setTimeout(()=>{
+    document.getElementById('confirmBackdrop').classList.remove('opacity-0','pointer-events-none');
+    document.getElementById('confirmCard').style.opacity = 1;
+    document.getElementById('confirmCard').style.transform = 'translateY(0)';
+  }, 200);
+  cart = {}; updateCartBar();
+}
+function closeConfirm(){
+  document.getElementById('confirmBackdrop').classList.add('opacity-0','pointer-events-none');
+  document.getElementById('confirmCard').style.opacity = 0;
+  document.getElementById('confirmCard').style.transform = 'translateY(24px)';
+  document.getElementById('tableInput').value = '';
+  document.getElementById('tableInput').style.borderColor = '';
+}
+
+renderNav(); renderFilters(); renderDishes();
+</script>
+</body>
+</html>
