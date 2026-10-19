@@ -5,7 +5,7 @@ Aplicación web móvil-first para la gestión de cartas digitales, filtrado din�
 ⚡ Demo en Vivo (Sin Instalación)
 
 No requiere instalación ni descargas. Puedes probar la aplicación interactiva directamente desde el navegador:
-👉 Ver Demo en GitHub Pages
+👉 Ver Demo: https://giodev2104.github.io/Aplicacion-web-de-carta-digital-interactiva-para-restaurantes/
 
 💼 Impacto y Valor para el Negocio
 
