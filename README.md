@@ -34,3 +34,5 @@ Desarrollador: Hugo Vazquez
 LinkedIn: Hugo Vázquez
 
 Email: vaznichugo@gmail.com
+
+Discord: gio.dev
